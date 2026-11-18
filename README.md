@@ -115,7 +115,7 @@ bash package.sh
 ## 已知限制
 
 - **读秀依赖 HTML 解析**，页面结构变化会导致失败；这是本插件最脆弱的部分；
-- 豆瓣可能触发人机验证（`sec.douban.com`），此时请在 Zotero 内置浏览器或系统浏览器打开豆瓣完成验证后重试；
+- 豆瓣可能触发人机验证（`sec.douban.com`）。触发时插件会自动弹出一个豆瓣验证窗口，完成验证后点「验证完成，重试」即可，不需要手动复制 Cookie；
 - Google Books 在中国大陆通常需要代理；
 - 自动匹配只信任「精确 ISBN」，因此不会误配，但也不会处理没有 ISBN 的扫描版 PDF；
 - 目前只处理图书/专著，不处理期刊论文（期刊元数据建议用茉莉花 + 知网/万方）；
@@ -194,13 +194,7 @@ Zotero 的「检查更新」会读取 `update.json`。
   nameZh: '读秀元数据',
   summaryZh: '从读秀、豆瓣、Google Books、Open Library 为 PDF 匹配图书元数据。',
   keywords: ['读秀', '豆瓣', '图书', '元数据', 'ISBN'],
-  releases: [
-    {
-      targetZoteroVersion: '11',
-      tagName: 'v1.0.0',
-      assetName: 'duxiumeta.xpi',
-    },
-  ],
+  releases: [],
   tags: ['metadata'],
   discoverReleases: true,
 },
@@ -214,6 +208,18 @@ Zotero 的「检查更新」会读取 `update.json`。
 收录需要人工审核，不能保证当天上线；在收录之前，用户仍可通过 Release 页面的 XPI 安装。
 
 ---
+
+## 更新日志
+
+### 1.0.1
+
+- 修复读秀标题里残留的 `<font color=Red>` 高亮标签（例如“轻松学习医学免疫学 第2版”）；
+- 豆瓣触发人机验证时自动弹出验证窗口，验证完成后可直接重试；
+- 保存元数据时统一清理标题、出版社、丛书等字段里的 HTML 标签。
+
+### 1.0.0
+
+- 首个版本：读秀 / 豆瓣 / Google Books / Open Library 检索，PDF 全文 ISBN 提取，自动匹配，右键菜单与设置面板。
 
 ## License
 

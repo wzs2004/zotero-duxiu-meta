@@ -29,7 +29,10 @@
     selectedIndex: -1,
     searchToken: 0,
     busy: false,
-    query: null
+    query: null,
+    verifying: false,
+    verifyPrompted: false,
+    lastQuery: ""
   };
 
   function $(id) {
@@ -122,14 +125,18 @@
   // Search
   // ---------------------------------------------------------------------------
 
-  async function runSearch() {
-    if (state.busy) {
+  async function runSearch(force) {
+    if (state.busy && !force) {
       return;
     }
     var text = $("query").value.trim();
     if (!text) {
       $("query").focus();
       return;
+    }
+    if (text !== state.lastQuery) {
+      state.lastQuery = text;
+      state.verifyPrompted = false;
     }
     var sources = getCheckedSources();
     if (!sources.length) {
@@ -171,6 +178,7 @@
           state.results = partial;
           renderResults(false);
           renderErrors(partialErrors);
+          maybePromptVerification(partialErrors);
           setStatus("正在检索… 已找到 " + partial.length + " 条");
         }
       });
@@ -184,6 +192,7 @@
         state.query = outcome.query;
       }
       renderErrors(outcome.errors || []);
+      maybePromptVerification(outcome.errors || []);
       renderResults(true);
       setStatus(state.results.length ? "检索完成" : "没有找到结果");
     }
@@ -210,6 +219,48 @@
     $("status").textContent = text;
   }
 
+  function maybePromptVerification(errors) {
+    if (state.verifyPrompted) {
+      return;
+    }
+    var error = (errors || []).filter(function (item) {
+      return item && item.needsVerification;
+    })[0];
+    if (!error) {
+      return;
+    }
+    state.verifyPrompted = true;
+    setTimeout(function () {
+      requestVerification(error);
+    }, 0);
+  }
+
+  async function requestVerification(error) {
+    if (state.verifying) {
+      return;
+    }
+    state.verifying = true;
+    setStatus("等待豆瓣验证…");
+    try {
+      var ok = await Zotero.DuxiuMeta.openVerification(
+        (error && error.verifyURL) || "https://www.douban.com/"
+      );
+      if (ok) {
+        runSearch(true);
+      }
+      else {
+        setStatus("验证窗口已关闭；可点击错误提示里的「打开豆瓣验证」重试");
+      }
+    }
+    catch (e) {
+      setStatus("无法打开验证窗口");
+      Zotero.debug("[DuxiuMeta] verification window failed: " + e);
+    }
+    finally {
+      state.verifying = false;
+    }
+  }
+
   function renderErrors(errors) {
     var container = $("errors");
     container.textContent = "";
@@ -225,6 +276,16 @@
       strong.textContent = name + "：";
       line.appendChild(strong);
       line.appendChild(document.createTextNode(error.message || "请求失败"));
+      if (error.needsVerification) {
+        var action = document.createElement("button");
+        action.type = "button";
+        action.className = "inline-action";
+        action.textContent = "打开豆瓣验证";
+        action.addEventListener("click", function () {
+          requestVerification(error);
+        });
+        line.appendChild(action);
+      }
       container.appendChild(line);
     });
     container.hidden = false;

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="chrome://global/skin/global.css" type="text/css"?>
+<window id="duxiumeta-verify"
+        windowtype="duxiumeta:verify"
+        title="豆瓣验证"
+        width="980" height="760"
+        xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+  <vbox flex="1">
+    <hbox align="center" style="padding: 8px 12px; gap: 8px; border-bottom: 1px solid #c9c9c9;">
+      <label value="在下方完成豆瓣的人机验证或登录，然后点击「验证完成，重试」。"/>
+      <spacer flex="1"/>
+      <button id="duxiumeta-verify-done" label="验证完成，重试"/>
+      <button id="duxiumeta-verify-cancel" label="关闭"/>
+    </hbox>
+    <browser id="duxiumeta-verify-browser" flex="1" type="content"
+             remote="true" maychangeremoteness="true"
+             disablehistory="false" src="about:blank"/>
+  </vbox>
+  <script type="application/javascript" src="chrome://duxiumeta/content/scripts/verify.js"/>
+</window>

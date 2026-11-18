@@ -24,6 +24,7 @@
   var notifierID = null;
   var autoTimer = null;
   var pendingAuto = new Map();
+  var verifyState = { url: "", resolve: null };
   var debug = false;
 
   var DEFAULT_DUXIU_URL = "https://www.duxiu.com/search?channel=search&sw={query}&ecode=utf-8";
@@ -99,7 +100,7 @@
     return doc;
   }
 
-  async function httpGet(url, options) {
+  async function httpRequest(url, options) {
     options = options || {};
     var timeout = options.timeout || 15000;
     log("GET " + url);
@@ -115,14 +116,28 @@
       followRedirects: true,
       errorDelayMax: 20000
     });
+    if (debug) {
+      log("response " + String(xhr.responseText || "").length + " chars from " + url + " (status " + xhr.status + ")");
+    }
+    return xhr;
+  }
+
+  async function httpGet(url, options) {
+    var xhr = await httpRequest(url, options);
     if (xhr.status && (xhr.status < 200 || xhr.status >= 400)) {
       throw new Error("HTTP " + xhr.status + " " + (xhr.statusText || ""));
     }
-    var text = xhr.responseText || "";
-    if (debug) {
-      log("response " + text.length + " chars from " + url);
+    return xhr.responseText || "";
+  }
+
+  function isDoubanChallenge(html, responseURL, status) {
+    if (status === 403) {
+      return true;
     }
-    return text;
+    if (/sec\.douban\.com/i.test(String(responseURL || ""))) {
+      return true;
+    }
+    return /sec\.douban\.com|captcha|异常请求|检测到有异常|人机验证/i.test(String(html || ""));
   }
 
   function friendlyError(error) {
@@ -169,13 +184,22 @@
       return [];
     }
     var url = "https://www.douban.com/search?cat=1001&q=" + encodeURIComponent(query);
-    var html = await httpGet(url, { timeout: 15000 });
-    var doc = parseHTML(html);
-    var results = C.parseDoubanSearch(doc);
+    var xhr = await httpRequest(url, { timeout: 15000 });
+    var responseURL = xhr.responseURL || url;
+    var html = xhr.responseText || "";
+
+    if (isDoubanChallenge(html, responseURL, xhr.status)) {
+      var challenge = new Error("豆瓣要求人机验证");
+      challenge.needsVerification = true;
+      challenge.verifyURL = responseURL;
+      throw challenge;
+    }
+    if (xhr.status && (xhr.status < 200 || xhr.status >= 400)) {
+      throw new Error("HTTP " + xhr.status + " " + (xhr.statusText || ""));
+    }
+
+    var results = C.parseDoubanSearch(parseHTML(html));
     if (!results.length) {
-      if (/sec\.douban\.com|captcha|异常请求|验证|登录/.test(html)) {
-        throw new Error("豆瓣要求人机验证：请在浏览器中打开 douban.com 完成验证后重试，或暂时只用其它来源。");
-      }
       throw new Error("豆瓣没有返回图书结果。");
     }
     return results.slice(0, request.maxResults);
@@ -287,7 +311,12 @@
         publishPartial();
         return { source: source, results: results };
       }).catch(function (error) {
-        errors.push({ source: source, message: friendlyError(error) });
+        var info = { source: source, message: friendlyError(error) };
+        if (error && error.needsVerification) {
+          info.needsVerification = true;
+          info.verifyURL = error.verifyURL || "";
+        }
+        errors.push(info);
         log(source + " failed: " + error);
         publishPartial();
         return { source: source, results: [] };
@@ -502,6 +531,50 @@
       "chrome,centerscreen,resizable=yes,width=1060,height=740",
       data
     );
+  }
+
+  /**
+   * Open a small browser window so the user can solve a Douban challenge.
+   * The window shares Zotero's cookie jar with Zotero.HTTP, so a successful
+   * verification also unblocks the next search request.
+   * @returns {Promise<boolean>} true if the user clicked "验证完成，重试"
+   */
+  function openVerification(url) {
+    return new Promise(function (resolve) {
+      verifyState.url = url || "https://www.douban.com/";
+      verifyState.resolve = resolve;
+
+      var win = Zotero.getMainWindow().openDialog(
+        "chrome://duxiumeta/content/verify.xhtml",
+        "duxiumeta-verify-" + Date.now(),
+        "chrome,centerscreen,resizable=yes,width=980,height=760"
+      );
+      if (!win) {
+        verifyState.resolve = null;
+        resolve(false);
+        return;
+      }
+      // "unload" also fires while the dialog's initial about:blank document is
+      // replaced, so use "close" to detect a user-initiated close.
+      win.addEventListener("close", function () {
+        if (verifyState.resolve === resolve) {
+          verifyState.resolve = null;
+          resolve(false);
+        }
+      }, { once: true });
+    });
+  }
+
+  function getVerificationURL() {
+    return verifyState.url;
+  }
+
+  function finishVerification(ok) {
+    var resolve = verifyState.resolve;
+    verifyState.resolve = null;
+    if (resolve) {
+      resolve(!!ok);
+    }
   }
 
   async function searchFromSelection() {
@@ -916,6 +989,9 @@
     searchFromSelection: searchFromSelection,
     searchFromClipboard: searchFromClipboard,
     openSearch: openSearch,
+    openVerification: openVerification,
+    getVerificationURL: getVerificationURL,
+    finishVerification: finishVerification,
     searchAll: searchAll,
     enrichResult: enrichResult,
     applyResult: applyResult,

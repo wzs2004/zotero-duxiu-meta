@@ -6,13 +6,7 @@
   nameZh: '读秀元数据',
   summaryZh: '从读秀、豆瓣、Google Books、Open Library 为 PDF 匹配图书元数据。',
   keywords: ['读秀', '豆瓣', '图书', '元数据', 'ISBN'],
-  releases: [
-    {
-      targetZoteroVersion: '11',
-      tagName: 'v1.0.0',
-      assetName: 'duxiumeta.xpi',
-    },
-  ],
+  releases: [],
   tags: ['metadata'],
   discoverReleases: true,
 },

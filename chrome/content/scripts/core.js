@@ -74,6 +74,24 @@ var DuxiuMetaCore = (function () {
     );
   }
 
+  /**
+   * Remove real HTML tags and tags that were escaped into text, e.g.
+   * "<font color=Red>书名</font>" and "&lt;font&gt;书名&lt;/font&gt;".
+   * Duxiu highlights search terms this way in its result markup.
+   */
+  function stripMarkup(value) {
+    if (value == null) {
+      return "";
+    }
+    var text = decodeEntities(String(value));
+    text = text
+      .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/<\/p>/gi, " ")
+      .replace(/<[^>]*>/g, " ");
+    return cleanText(decodeEntities(text));
+  }
+
   function halfWidth(text) {
     return String(text == null ? "" : text).replace(/[\uff01-\uff5e]/g, function (ch) {
       return String.fromCharCode(ch.charCodeAt(0) - 0xfee0);
@@ -479,8 +497,8 @@ var DuxiuMetaCore = (function () {
   // ---------------------------------------------------------------------------
 
   function buildTitle(result) {
-    var title = cleanText(result.title);
-    var subtitle = cleanText(result.subtitle);
+    var title = stripMarkup(result.title);
+    var subtitle = stripMarkup(result.subtitle);
     if (!subtitle) {
       return title;
     }
@@ -494,22 +512,22 @@ var DuxiuMetaCore = (function () {
     var fields = {};
     fields.title = buildTitle(result);
     if (result.publisher) {
-      fields.publisher = cleanText(result.publisher);
+      fields.publisher = stripMarkup(result.publisher);
     }
     if (result.place) {
-      fields.place = cleanText(result.place);
+      fields.place = stripMarkup(result.place);
     }
     if (result.date) {
       fields.date = normalizeDate(result.date);
     }
     if (result.edition) {
-      fields.edition = cleanText(result.edition);
+      fields.edition = stripMarkup(result.edition);
     }
     if (result.series) {
-      fields.series = cleanText(result.series);
+      fields.series = stripMarkup(result.series);
     }
     if (result.seriesNumber) {
-      fields.seriesNumber = cleanText(result.seriesNumber);
+      fields.seriesNumber = stripMarkup(result.seriesNumber);
     }
     if (result.numPages) {
       var pages = parseInt(String(result.numPages).replace(/[^\d]/g, ""), 10);
@@ -813,7 +831,7 @@ var DuxiuMetaCore = (function () {
   }
 
   function cleanDuxiuTitle(value) {
-    var text = cleanText(value);
+    var text = stripMarkup(value);
     var bracketed = text.match(/《([^》]{1,150})》/);
     if (bracketed) {
       return cleanText(bracketed[1]);
@@ -1179,6 +1197,7 @@ var DuxiuMetaCore = (function () {
     SOURCE_ORDER: SOURCE_ORDER,
     cleanText: cleanText,
     stripHTML: stripHTML,
+    stripMarkup: stripMarkup,
     decodeEntities: decodeEntities,
     halfWidth: halfWidth,
     normalizeTitle: normalizeTitle,

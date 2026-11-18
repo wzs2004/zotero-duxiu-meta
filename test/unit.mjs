@@ -49,6 +49,29 @@ test("formatISBN keeps canonical digits", () => {
   assert.equal(C.formatISBN("978-7-115-42802-8"), "9787115428028");
 });
 
+test("stripMarkup removes real and escaped highlight tags", () => {
+  assert.equal(
+    C.stripMarkup("<font color=Red>轻松学习医学免疫学</font> 第2版"),
+    "轻松学习医学免疫学 第2版"
+  );
+  assert.equal(
+    C.stripMarkup("&lt;font color=Red&gt;轻松学习医学免疫学&lt;/font&gt; 第2版"),
+    "轻松学习医学免疫学 第2版"
+  );
+});
+
+test("toBookFields strips markup from title and publisher", () => {
+  const fields = C.toBookFields({
+    source: "duxiu",
+    title: "<font color=Red>轻松学习医学免疫学</font> 第2版",
+    publisher: "<b>人民卫生出版社</b>",
+    series: "<i>全国高等学校教材</i>"
+  });
+  assert.equal(fields.title, "轻松学习医学免疫学 第2版");
+  assert.equal(fields.publisher, "人民卫生出版社");
+  assert.equal(fields.series, "全国高等学校教材");
+});
+
 console.log("Text / dates");
 
 test("normalizeDate handles Chinese dates", () => {

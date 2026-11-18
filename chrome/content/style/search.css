@@ -475,3 +475,12 @@ footer .hint {
 footer .spacer {
   flex: 1;
 }
+
+.errors .inline-action {
+  height: 22px;
+  padding: 0 8px;
+  margin-left: 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  vertical-align: middle;
+}
