@@ -1,0 +1,477 @@
+/* Duxiu Meta - search dialog */
+
+:root {
+  --bg: #f7f7f8;
+  --panel: #ffffff;
+  --text: #1f2328;
+  --muted: #6b7280;
+  --border: #e3e4e8;
+  --accent: #2f6fed;
+  --accent-soft: #eaf0ff;
+  --warn-bg: #fff8e6;
+  --warn-border: #f0d38a;
+  --row-hover: #f2f5fb;
+  --row-selected: #e6eeff;
+  --badge-duxiu: #b45309;
+  --badge-douban: #15803d;
+  --badge-google: #1d4ed8;
+  --badge-openlibrary: #7c3aed;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1d20;
+    --panel: #25262a;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --border: #3a3c41;
+    --accent: #6b9bff;
+    --accent-soft: #2a3450;
+    --warn-bg: #3a3220;
+    --warn-border: #6b5a2a;
+    --row-hover: #2d2f34;
+    --row-selected: #2f3a52;
+    --badge-duxiu: #f0a35e;
+    --badge-douban: #62c98a;
+    --badge-google: #8ab0ff;
+    --badge-openlibrary: #b79bff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.logo {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2f6fed, #7c3aed);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-text {
+  min-width: 0;
+}
+
+h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.target {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 520px;
+}
+
+.sources {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.sources label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.searchbar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 18px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+#query {
+  flex: 1;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+
+#query:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+button {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--row-hover);
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button.primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+  background: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.results-pane {
+  flex: 0 0 46%;
+  min-width: 360px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  position: relative;
+}
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+}
+
+.errors {
+  margin: 0 12px 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--warn-border);
+  border-radius: 8px;
+  background: var(--warn-bg);
+  font-size: 12px;
+  max-height: 92px;
+  overflow: auto;
+}
+
+.errors .error-line {
+  margin: 2px 0;
+}
+
+.errors b {
+  font-weight: 600;
+}
+
+.results {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 12px;
+  overflow: auto;
+  flex: 1;
+}
+
+.result {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.result:hover {
+  background: var(--row-hover);
+}
+
+.result.selected {
+  background: var(--row-selected);
+  border-color: var(--accent);
+}
+
+.result-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.result-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.result-meta {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--muted);
+}
+
+.badge[data-source="duxiu"] { background: var(--badge-duxiu); }
+.badge[data-source="douban"] { background: var(--badge-douban); }
+.badge[data-source="google"] { background: var(--badge-google); }
+.badge[data-source="openlibrary"] { background: var(--badge-openlibrary); }
+
+.score {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.score.high {
+  color: #15803d;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .score.high { color: #62c98a; }
+}
+
+.empty {
+  padding: 28px 20px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 12.5px;
+}
+
+.empty-title {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.loading {
+  position: absolute;
+  inset: 40px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 18px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  z-index: 2;
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.detail-pane {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: var(--panel);
+  padding: 18px 22px;
+}
+
+.detail-empty {
+  padding-top: 64px;
+}
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.detail-title {
+  margin: 10px 0 4px;
+  font-size: 19px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.detail-sub {
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-bottom: 14px;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 7px 14px;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.meta-grid dt {
+  color: var(--muted);
+}
+
+.meta-grid dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.meta-grid a {
+  color: var(--accent);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.abstract-box {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.abstract-box summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.abstract-box p {
+  margin: 10px 0 0;
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.75;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.enriching {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+footer .check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+footer .hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+footer .spacer {
+  flex: 1;
+}

@@ -1,0 +1,12 @@
+{
+  "addons": {
+    "duxiumeta@duxiumeta.github.io": {
+      "updates": [
+        {
+          "version": "1.0.0",
+          "update_link": "https://github.com/wzs2004/zotero-duxiu-meta/releases/download/v1.0.0/duxiumeta.xpi"
+        }
+      ]
+    }
+  }
+}

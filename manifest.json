@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "Duxiu Meta (读秀元数据)",
+  "version": "1.0.0",
+  "description": "为 PDF 自动匹配图书元数据：读秀、豆瓣、Google Books、Open Library。",
+  "homepage_url": "https://github.com/wzs2004/zotero-duxiu-meta#readme",
+  "author": "zotero-duxiu-meta contributors",
+  "icons": {
+    "48": "chrome/content/icons/icon.png",
+    "96": "chrome/content/icons/icon@2x.png"
+  },
+  "applications": {
+    "zotero": {
+      "id": "duxiumeta@duxiumeta.github.io",
+      "update_url": "https://github.com/wzs2004/zotero-duxiu-meta/releases/latest/download/update.json",
+      "strict_min_version": "7.0",
+      "strict_max_version": "11.*"
+    }
+  }
+}

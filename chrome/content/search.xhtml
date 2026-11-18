@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <title>读秀元数据匹配</title>
+  <link rel="stylesheet" href="chrome://duxiumeta/content/style/search.css"/>
+  <script src="chrome://duxiumeta/content/scripts/core.js"></script>
+  <script src="chrome://duxiumeta/content/scripts/search.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header id="header">
+      <div class="brand">
+        <div class="logo">读</div>
+        <div class="brand-text">
+          <h1>读秀元数据匹配</h1>
+          <div id="target" class="target">目标：未关联条目</div>
+        </div>
+      </div>
+      <div id="sourceToggles" class="sources"></div>
+    </header>
+
+    <section class="searchbar">
+      <input id="query" type="text" placeholder="输入书名、ISBN 或作者，例如 9787115501234" autocomplete="off" spellcheck="false"/>
+      <button id="btn-search" class="primary">搜索</button>
+    </section>
+
+    <main>
+      <section class="results-pane">
+        <div class="pane-head">
+          <span id="status">准备就绪</span>
+          <span id="count" class="count"></span>
+        </div>
+        <div id="errors" class="errors" hidden="hidden"></div>
+        <ul id="results" class="results"></ul>
+        <div id="empty" class="empty" hidden="hidden">
+          <p class="empty-title">没有找到结果</p>
+          <p>试试只输入书名，或检查网络。读秀需要在机构 IP / VPN 内访问。</p>
+        </div>
+        <div id="loading" class="loading" hidden="hidden">
+          <div class="spinner"></div>
+          <span>正在检索各来源…</span>
+        </div>
+      </section>
+
+      <aside class="detail-pane">
+        <div id="detailEmpty" class="empty detail-empty">
+          <p>从左侧选择一条结果</p>
+          <p class="muted">点击后会读取详情页，补全 ISBN、页数与摘要。</p>
+        </div>
+        <div id="detailContent" class="detail-content" hidden="hidden">
+          <div class="detail-head">
+            <span id="dSource" class="badge"></span>
+            <span id="dScore" class="score"></span>
+          </div>
+          <h2 id="dTitle" class="detail-title"></h2>
+          <div id="dSub" class="detail-sub"></div>
+          <dl id="dMeta" class="meta-grid"></dl>
+          <details id="dAbstractBox" class="abstract-box" hidden="hidden">
+            <summary>内容简介</summary>
+            <p id="dAbstract"></p>
+          </details>
+          <div id="dEnriching" class="enriching" hidden="hidden">正在读取详情页…</div>
+        </div>
+      </aside>
+    </main>
+
+    <footer>
+      <label class="check"><input type="checkbox" id="overwrite"/> 覆盖已有字段</label>
+      <span class="hint">默认只补全空字段</span>
+      <div class="spacer"></div>
+      <button id="btn-open" disabled="disabled">在浏览器打开</button>
+      <button id="btn-apply" class="primary" disabled="disabled">应用元数据</button>
+      <button id="btn-close">关闭</button>
+    </footer>
+  </div>
+</body>
+</html>

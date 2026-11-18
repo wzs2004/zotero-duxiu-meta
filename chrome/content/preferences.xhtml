@@ -1,0 +1,99 @@
+<!--
+  Preference pane fragment for Zotero 7 - 11.
+  XUL is the default namespace; HTML elements use the html: prefix.
+-->
+<vbox id="duxiumeta-prefs" xmlns:html="http://www.w3.org/1999/xhtml" class="duxiumeta-prefs">
+
+  <html:h2 class="duxiumeta-heading">读秀元数据</html:h2>
+  <html:p class="duxiumeta-intro">
+    选中一个 PDF（或它的父条目）后，右键选择「读秀元数据 → 搜索并匹配元数据…」。
+    插件会从 PDF 全文中提取 ISBN，并同时检索读秀、豆瓣、Google Books 与 Open Library，
+    让你挑选最匹配的一条写入 Zotero。
+  </html:p>
+
+  <groupbox>
+    <label><html:h3 class="duxiumeta-section">检索来源</html:h3></label>
+    <checkbox id="duxiumeta-source-duxiu" native="true"
+              preference="extensions.zotero.duxiumeta.sources.duxiu"
+              label="读秀（需要机构 IP / VPN 或登录）"/>
+    <checkbox id="duxiumeta-source-douban" native="true"
+              preference="extensions.zotero.duxiumeta.sources.douban"
+              label="豆瓣读书"/>
+    <checkbox id="duxiumeta-source-google" native="true"
+              preference="extensions.zotero.duxiumeta.sources.google"
+              label="Google Books（中国大陆可能需要代理）"/>
+    <checkbox id="duxiumeta-source-openlibrary" native="true"
+              preference="extensions.zotero.duxiumeta.sources.openlibrary"
+              label="Open Library"/>
+  </groupbox>
+
+  <groupbox>
+    <label><html:h3 class="duxiumeta-section">读秀设置</html:h3></label>
+
+    <html:p class="duxiumeta-help">
+      检索地址模板，<code>{query}</code> 会被替换为书名或 ISBN。不同学校的读秀入口可能不同，可在此改成自己的入口。
+    </html:p>
+    <html:input id="duxiumeta-duxiu-url" type="text" class="duxiumeta-wide"
+                preference="extensions.zotero.duxiumeta.duxiu.searchURL"/>
+
+    <html:p class="duxiumeta-help">
+      结果链接的 CSS 选择器。默认抓取所有指向 <code>bookDetail.jsp</code> 的链接；若读秀改版导致抓不到结果，可在这里调整。
+    </html:p>
+    <html:input id="duxiumeta-duxiu-selector" type="text" class="duxiumeta-wide"
+                preference="extensions.zotero.duxiumeta.duxiu.linkSelector"/>
+
+    <hbox align="center" class="duxiumeta-inline">
+      <label value="超时（毫秒）"/>
+      <html:input id="duxiumeta-duxiu-timeout" type="number" min="3000" max="60000" step="1000"
+                  class="duxiumeta-short"
+                  preference="extensions.zotero.duxiumeta.duxiu.timeout"/>
+      <button label="打开读秀" oncommand="Zotero.launchURL('https://www.duxiu.com/')"/>
+    </hbox>
+
+    <html:p class="duxiumeta-note">
+      读秀没有公开 API。本插件直接请求读秀的检索页并解析 HTML，因此只能在你所在机构已授权的网络
+      （校园网、VPN 或机构代理）中使用；它不会绕过任何登录或付费墙。
+    </html:p>
+  </groupbox>
+
+  <groupbox>
+    <label><html:h3 class="duxiumeta-section">匹配与写入</html:h3></label>
+
+    <checkbox id="duxiumeta-overwrite" native="true"
+              preference="extensions.zotero.duxiumeta.overwrite"
+              label="默认覆盖已有字段（关闭时只补全空字段）"/>
+
+    <hbox align="center" class="duxiumeta-inline">
+      <label value="每个来源最多结果数"/>
+      <html:input id="duxiumeta-max-results" type="number" min="5" max="40" step="5"
+                  class="duxiumeta-short"
+                  preference="extensions.zotero.duxiumeta.maxResults"/>
+    </hbox>
+
+    <checkbox id="duxiumeta-auto" native="true"
+              preference="extensions.zotero.duxiumeta.autoOnImport"
+              label="导入 PDF 时自动匹配（仅当 PDF 中有 ISBN 且命中精确 ISBN 时写入）"/>
+    <hbox align="center" class="duxiumeta-inline">
+      <label value="自动匹配的最低分数"/>
+      <html:input id="duxiumeta-auto-score" type="number" min="0.5" max="1" step="0.01"
+                  class="duxiumeta-short"
+                  preference="extensions.zotero.duxiumeta.autoMinScore"/>
+    </hbox>
+
+    <checkbox id="duxiumeta-debug" native="true"
+              preference="extensions.zotero.duxiumeta.debug"
+              label="输出调试日志（Zotero 帮助 → 调试输出）"/>
+  </groupbox>
+
+  <groupbox>
+    <label><html:h3 class="duxiumeta-section">说明</html:h3></label>
+    <html:p class="duxiumeta-help">
+      插件只把检索到的元数据写入 Zotero，不会上传你的 PDF、笔记或数据库。检索请求直接发往各来源网站，
+      因此这些网站会看到你的 IP 地址。
+    </html:p>
+    <html:p class="duxiumeta-help">
+      项目主页与问题反馈：<html:a href="https://github.com/wzs2004/zotero-duxiu-meta" onclick="Zotero.launchURL(this.href); return false;">github.com/wzs2004/zotero-duxiu-meta</html:a>
+    </html:p>
+  </groupbox>
+
+</vbox>
