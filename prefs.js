@@ -1,4 +1,5 @@
 pref("extensions.zotero.duxiumeta.sources.duxiu", true);
+pref("extensions.zotero.duxiumeta.sources.wenjin", true);
 pref("extensions.zotero.duxiumeta.sources.douban", true);
 pref("extensions.zotero.duxiumeta.sources.google", true);
 pref("extensions.zotero.duxiumeta.sources.openlibrary", true);

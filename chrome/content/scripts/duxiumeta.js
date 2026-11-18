@@ -35,7 +35,7 @@
 
   function getPref(key, fallback) {
     try {
-      var value = Zotero.Prefs.get(PREF_BRANCH + key);
+      var value = Zotero.Prefs.get(PREF_BRANCH + key, true);
       if (value === undefined || value === null) {
         return fallback;
       }
@@ -178,6 +178,28 @@
     return results.slice(0, request.maxResults);
   }
 
+  async function searchWenjin(request) {
+    var query = request.isbn || request.title;
+    if (!query) {
+      return [];
+    }
+    var url = new URL("http://find.nlc.cn/search/doSearch");
+    url.searchParams.set("query", query);
+    url.searchParams.set("secQuery", "");
+    url.searchParams.set("actualQuery", query);
+    url.searchParams.set("searchType", "2");
+    url.searchParams.set("docType", "全部");
+    url.searchParams.set("isGroup", "isGroup");
+    url.searchParams.set("targetFieldLog", "全部字段");
+    url.searchParams.set("orderBy", "RELATIVE");
+
+    var html = await httpGet(url.href, { timeout: 15000 });
+    if (/访问受限|验证码|请输入验证码/.test(html)) {
+      throw new Error("文津要求人机验证，请稍后再试。");
+    }
+    return C.parseWenjinSearch(parseHTML(html)).slice(0, request.maxResults);
+  }
+
   async function searchDouban(request) {
     var query = request.isbn || request.title;
     if (!query) {
@@ -244,6 +266,7 @@
 
   var SOURCES = {
     duxiu: searchDuxiu,
+    wenjin: searchWenjin,
     douban: searchDouban,
     google: searchGoogle,
     openlibrary: searchOpenLibrary
@@ -354,6 +377,15 @@
         }
         catch (e) {
           log("douban detail failed: " + e);
+        }
+      }
+      else if (result.source === "wenjin" && result.url) {
+        try {
+          var wenjinHTML = await httpGet(result.url, { timeout: 15000 });
+          C.mergeResult(result, C.parseWenjinDetail(parseHTML(wenjinHTML), result.url));
+        }
+        catch (e) {
+          log("wenjin detail failed: " + e);
         }
       }
       else if (result.source === "duxiu" && result.url) {

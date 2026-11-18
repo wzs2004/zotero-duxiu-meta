@@ -1,6 +1,6 @@
 # 读秀元数据 · Duxiu Meta for Zotero
 
-为 Zotero 中的 PDF 自动匹配图书元数据：**读秀**、**豆瓣读书**、**Google Books**、**Open Library**。
+为 Zotero 中的 PDF 自动匹配图书元数据：**读秀**、**文津（国家图书馆）**、**豆瓣读书**、**Google Books**、**Open Library**。
 
 选中一个 PDF（或它的父条目），右键选择「读秀元数据 → 搜索并匹配元数据…」。插件会：
 
@@ -92,7 +92,7 @@ bash package.sh
 
 | 设置 | 默认值 | 说明 |
 | --- | --- | --- |
-| 检索来源 | 读秀 / 豆瓣 / Google Books / Open Library 全开 | 弹窗里也可以临时勾选 |
+| 检索来源 | 读秀 / 文津 / 豆瓣 / Google Books / Open Library 全开 | 弹窗里也可以临时勾选；设置里的勾选会直接影响检索 |
 | 读秀检索地址模板 | `https://www.duxiu.com/search?channel=search&sw={query}&ecode=utf-8` | `{query}` 为书名或 ISBN |
 | 读秀结果选择器 | `a[href*="bookDetail.jsp"]` | 抓取详情页链接 |
 | 读秀超时 | 15000 ms | |
@@ -210,6 +210,12 @@ Zotero 的「检查更新」会读取 `update.json`。
 ---
 
 ## 更新日志
+
+### 1.0.2
+
+- 修复设置里取消勾选来源后，右键检索仍然使用该来源的问题（偏好读取没有走全局分支）；
+- 新增文津（国家图书馆）图书源，支持检索结果和详情页的 ISBN、出版地、页数、语种、版次；
+- 设置里的读秀地址、超时、结果数、自动匹配阈值等偏好现在都会真正生效。
 
 ### 1.0.1
 

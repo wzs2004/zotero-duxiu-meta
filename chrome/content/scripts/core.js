@@ -13,12 +13,13 @@ var DuxiuMetaCore = (function () {
 
   var SOURCE_NAMES = {
     duxiu: "读秀",
+    wenjin: "文津",
     douban: "豆瓣",
     google: "Google Books",
     openlibrary: "Open Library"
   };
 
-  var SOURCE_ORDER = ["duxiu", "douban", "google", "openlibrary"];
+  var SOURCE_ORDER = ["duxiu", "wenjin", "douban", "google", "openlibrary"];
 
   // ---------------------------------------------------------------------------
   // Text helpers
@@ -239,6 +240,7 @@ var DuxiuMetaCore = (function () {
   }
 
   var LANGUAGE_MAP = {
+    english: "en-US", chinese: "zh-CN",
     zh: "zh-CN", "zh-cn": "zh-CN", "zh-hans": "zh-CN", chi: "zh-CN", zho: "zh-CN",
     "zh-tw": "zh-TW", "zh-hant": "zh-TW",
     en: "en-US", eng: "en-US", "en-us": "en-US", "en-gb": "en-GB",
@@ -735,6 +737,175 @@ var DuxiuMetaCore = (function () {
   }
 
   // ---------------------------------------------------------------------------
+  // Wenjin (国家图书馆 文津搜索)
+  // ---------------------------------------------------------------------------
+
+  var WENJIN_BOOK_TYPES = ["专著", "善本", "普通古籍", "特藏古籍", "计算机文件", "图书"];
+
+  function wenjinDetailURL(link, title) {
+    var href = link.getAttribute("href") || "";
+    if (href && href.indexOf("javascript:") !== 0) {
+      var direct = absolutize(href, "http://find.nlc.cn/");
+      if (direct) {
+        return direct;
+      }
+    }
+
+    var onclick = link.getAttribute("onclick") || "";
+    var match = onclick.match(/makeDetailUrl\(\s*this\s*,\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]/);
+    if (!match) {
+      return "";
+    }
+
+    var url = "http://find.nlc.cn" + match[1];
+    if (url.indexOf("?") === -1) {
+      url += "?";
+    }
+    else if (!/[?&]$/.test(url)) {
+      url += "&";
+    }
+    return url
+      + "docId=" + encodeURIComponent(match[2])
+      + "&dataSource=" + encodeURIComponent(match[3])
+      + "&query=" + encodeURIComponent(title);
+  }
+
+  function parseWenjinSearch(doc) {
+    var results = [];
+    var items = doc.querySelectorAll(".article_item");
+
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var link = item.querySelector(".book_name a") || item.querySelector(".book_name");
+      if (!link) {
+        continue;
+      }
+      var title = cleanText(link.textContent);
+      if (!title) {
+        continue;
+      }
+
+      var type = "";
+      var author = "";
+      var year = "";
+      var types = item.querySelectorAll(".book_type");
+      for (var j = 0; j < types.length; j++) {
+        var text = cleanText(types[j].textContent);
+        var match = text.match(/^([^:：]{1,12})\s*[:：]\s*([\s\S]*)$/);
+        if (!match) {
+          continue;
+        }
+        var label = match[1].replace(/\s+/g, "");
+        var value = cleanText(match[2]);
+        if (label === "文献类型") {
+          type = value;
+        }
+        else if (label === "著者") {
+          author = value;
+        }
+        else if (label === "出版年份") {
+          var yearMatch = value.match(/((?:19|20)\d{2})/);
+          year = yearMatch ? yearMatch[1] : "";
+        }
+      }
+
+      if (type && WENJIN_BOOK_TYPES.indexOf(type) === -1) {
+        continue;
+      }
+
+      var publisherNode = item.querySelector(".book_she .book_val");
+      var url = wenjinDetailURL(link, title);
+      if (!url) {
+        continue;
+      }
+
+      results.push({
+        source: "wenjin",
+        url: url,
+        title: title,
+        authors: splitAuthors(author),
+        publisher: publisherNode ? cleanText(publisherNode.textContent) : "",
+        date: year
+      });
+    }
+
+    return results;
+  }
+
+  function parseWenjinDetail(doc, url) {
+    var data = { source: "wenjin", url: url || "" };
+    data.title = firstText(doc, ".book_name") || firstText(doc, "h1");
+
+    var items = doc.querySelectorAll(".book_item");
+    for (var i = 0; i < items.length; i++) {
+      var text = cleanText(items[i].textContent);
+      var match = text.match(/^([^:：]{1,20})\s*[:：]\s*([\s\S]*)$/);
+      if (!match) {
+        continue;
+      }
+      var label = match[1].replace(/\s+/g, "");
+      var value = cleanText(match[2]);
+
+      if (label === "标识号") {
+        var isbn = extractISBNs(value)[0];
+        if (isbn) {
+          data.isbn = isbn;
+        }
+      }
+      else if (label === "出版、发行者" || label === "出版发行者") {
+        if (!data.publisher) {
+          data.publisher = value;
+        }
+      }
+      else if (label === "出版、发行地" || label === "出版发行地") {
+        if (!data.place) {
+          data.place = value;
+        }
+      }
+      else if (label === "出版发行时间" || label === "出版时间") {
+        data.date = normalizeDate(value);
+      }
+      else if (label === "载体形态") {
+        var pageText = value.replace(/[,，]/g, " ");
+        var pages = pageText.match(/(\d+)\s*页/g);
+        if (pages) {
+          var last = pages[pages.length - 1].replace(/[^\d]/g, "");
+          data.numPages = parseInt(last, 10);
+        }
+      }
+      else if (label === "版本说明") {
+        data.edition = value;
+      }
+      else if (label === "所有责任者" || label === "责任者") {
+        var names = value.replace(/\[[^\]]*\]/g, "").split(/[;；]/);
+        var authors = [];
+        names.forEach(function (name) {
+          var cleaned = cleanText(name);
+          if (cleaned) {
+            authors.push(cleaned);
+          }
+        });
+        if (authors.length) {
+          data.authors = unique(authors);
+        }
+      }
+      else if (label === "语种") {
+        if (/english/i.test(value)) {
+          data.language = "en-US";
+        }
+        else if (/chinese|中文|汉语/i.test(value)) {
+          data.language = "zh-CN";
+        }
+        else {
+          data.language = normalizeLanguage(value);
+        }
+      }
+    }
+
+    return data;
+  }
+
+  // ---------------------------------------------------------------------------
   // Duxiu (读秀)
   // ---------------------------------------------------------------------------
 
@@ -1217,6 +1388,8 @@ var DuxiuMetaCore = (function () {
     mergeResult: mergeResult,
     toBookFields: toBookFields,
     resolveDoubanSubject: resolveDoubanSubject,
+    parseWenjinSearch: parseWenjinSearch,
+    parseWenjinDetail: parseWenjinDetail,
     parseDoubanSearch: parseDoubanSearch,
     parseDoubanDetail: parseDoubanDetail,
     parseDuxiuSearch: parseDuxiuSearch,
