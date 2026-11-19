@@ -89,6 +89,29 @@
   </groupbox>
 
   <groupbox>
+    <label><html:h3 class="duxiumeta-section">AI 辅助（可选）</html:h3></label>
+    <html:p class="duxiumeta-help">
+      启用后，批量匹配会把 PDF 文件名、识别出的 ISBN/书名和候选书目发送给 OpenAI 兼容接口，
+      由模型挑选最匹配的一条。不会上传 PDF 内容。未配置时使用本地评分，功能不受影响。
+    </html:p>
+    <checkbox id="duxiumeta-ai-enabled" native="true"
+              preference="extensions.zotero.duxiumeta.ai.enabled"
+              label="启用 AI 选书（批量匹配时）"/>
+
+    <html:p class="duxiumeta-help">接口地址，例如 <code>https://api.deepseek.com/v1</code> 或 <code>https://api.openai.com/v1</code>。</html:p>
+    <html:input id="duxiumeta-ai-base" type="text" class="duxiumeta-wide"
+                preference="extensions.zotero.duxiumeta.ai.baseURL"/>
+
+    <html:p class="duxiumeta-help">模型名，例如 <code>deepseek-chat</code>、<code>gpt-4o-mini</code>。</html:p>
+    <html:input id="duxiumeta-ai-model" type="text" class="duxiumeta-wide"
+                preference="extensions.zotero.duxiumeta.ai.model"/>
+
+    <html:p class="duxiumeta-help">API Key。保存在 Zotero 偏好中，明文存储；不需要鉴权的本地接口可以留空。</html:p>
+    <html:input id="duxiumeta-ai-key" type="password" class="duxiumeta-wide"
+                preference="extensions.zotero.duxiumeta.ai.apiKey"/>
+  </groupbox>
+
+  <groupbox>
     <label><html:h3 class="duxiumeta-section">说明</html:h3></label>
     <html:p class="duxiumeta-help">
       插件只把检索到的元数据写入 Zotero，不会上传你的 PDF、笔记或数据库。检索请求直接发往各来源网站，

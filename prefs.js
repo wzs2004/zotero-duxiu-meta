@@ -13,3 +13,8 @@ pref("extensions.zotero.duxiumeta.overwrite", false);
 pref("extensions.zotero.duxiumeta.autoOnImport", false);
 pref("extensions.zotero.duxiumeta.autoMinScore", "0.92");
 pref("extensions.zotero.duxiumeta.debug", false);
+
+pref("extensions.zotero.duxiumeta.ai.enabled", false);
+pref("extensions.zotero.duxiumeta.ai.baseURL", "");
+pref("extensions.zotero.duxiumeta.ai.model", "");
+pref("extensions.zotero.duxiumeta.ai.apiKey", "");

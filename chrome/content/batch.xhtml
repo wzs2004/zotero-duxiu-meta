@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <title>AI 批量匹配</title>
+  <link rel="stylesheet" href="chrome://duxiumeta/content/style/search.css"/>
+  <link rel="stylesheet" href="chrome://duxiumeta/content/style/batch.css"/>
+  <script src="chrome://duxiumeta/content/scripts/core.js"></script>
+  <script src="chrome://duxiumeta/content/scripts/batch.js"></script>
+</head>
+<body>
+  <div id="app" class="batch-app">
+    <header class="batch-header">
+      <div class="brand">
+        <div class="logo">AI</div>
+        <div class="brand-text">
+          <h1>AI 批量匹配</h1>
+          <div id="collection" class="target">分类：</div>
+        </div>
+      </div>
+      <div id="sources" class="sources"></div>
+    </header>
+
+    <section class="batch-toolbar">
+      <button id="btn-scan" class="primary">开始识别</button>
+      <button id="btn-stop" disabled="disabled">停止</button>
+      <label class="check"><input type="checkbox" id="recursive"/> 包含子分类</label>
+      <label class="check"><input type="checkbox" id="onlyMissing"/> 只勾选缺少 ISBN 的</label>
+      <span class="spacer"></span>
+      <span id="summary" class="summary"></span>
+      <button id="btn-all">全选</button>
+      <button id="btn-none">全不选</button>
+    </section>
+
+    <div class="table-head">
+      <span></span>
+      <span>PDF / 当前条目</span>
+      <span>ISBN</span>
+      <span>识别结果（可切换）</span>
+      <span>状态</span>
+    </div>
+
+    <ul id="rows" class="rows"></ul>
+    <div id="empty" class="empty" hidden="hidden">
+      <p class="empty-title">这个分类里没有 PDF</p>
+      <p>把 PDF 拖进分类，或勾选「包含子分类」后再试。</p>
+    </div>
+
+    <footer class="batch-footer">
+      <span id="status">准备就绪</span>
+      <span class="spacer"></span>
+      <button id="btn-apply" class="primary" disabled="disabled">应用选中项并覆盖元数据</button>
+      <button id="btn-close">关闭</button>
+    </footer>
+  </div>
+</body>
+</html>

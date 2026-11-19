@@ -17,6 +17,7 @@
   var PLUGIN_ID = "duxiumeta@duxiumeta.github.io";
   var PANE_ID = "duxiumeta-prefs";
   var MENU_ID = "duxiumeta-itemmenu";
+  var COLLECTION_MENU_ID = "duxiumeta-collectionmenu";
   var DIALOG_URL = "chrome://duxiumeta/content/search.xhtml";
   var ICON_URL = "chrome://duxiumeta/content/icons/icon.png";
 
@@ -866,6 +867,274 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Optional AI ranking (OpenAI-compatible chat completions)
+  // ---------------------------------------------------------------------------
+
+  function aiConfigured() {
+    return getBool("ai.enabled", false)
+      && !!String(getPref("ai.baseURL", "")).trim()
+      && !!String(getPref("ai.model", "")).trim();
+  }
+
+  function parseAIJSON(content) {
+    if (!content) {
+      return null;
+    }
+    var text = String(content).trim();
+    text = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+    var start = text.indexOf("{");
+    var end = text.lastIndexOf("}");
+    if (start === -1 || end === -1 || end <= start) {
+      return null;
+    }
+    try {
+      return JSON.parse(text.slice(start, end + 1));
+    }
+    catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Ask an OpenAI-compatible model to choose among candidate records.
+   * Only bibliographic text is sent; PDF contents never leave the machine.
+   * @returns {Promise<{index: number, model: string}|null>}
+   */
+  async function aiPickCandidate(desc, candidates) {
+    if (!aiConfigured() || !candidates || candidates.length < 2) {
+      return null;
+    }
+
+    var base = String(getPref("ai.baseURL", "")).trim().replace(/\/+$/, "");
+    var url = /\/chat\/completions$/.test(base) ? base : base + "/chat/completions";
+    var apiKey = String(getPref("ai.apiKey", "")).trim();
+    var model = String(getPref("ai.model", "")).trim();
+
+    var headers = { "Content-Type": "application/json" };
+    if (apiKey) {
+      headers.Authorization = "Bearer " + apiKey;
+    }
+
+    var body = {
+      model: model,
+      temperature: 0,
+      messages: [
+        {
+          role: "system",
+          content: "你是图书元数据匹配助手。根据 PDF 文件名、当前条目信息和候选书目，选择最匹配的一条。"
+            + "只返回 JSON，例如 {\"index\": 0}；没有合适的候选返回 {\"index\": -1}。不要输出解释。"
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            filename: desc.filename,
+            currentTitle: desc.title,
+            detectedISBN: desc.isbn,
+            candidates: candidates.map(function (candidate, index) {
+              return {
+                index: index,
+                title: candidate.title,
+                authors: candidate.authors,
+                publisher: candidate.publisher,
+                date: candidate.date,
+                isbn: candidate.isbn,
+                source: candidate.source
+              };
+            })
+          })
+        }
+      ]
+    };
+
+    var xhr = await Zotero.HTTP.request("POST", url, {
+      headers: headers,
+      body: JSON.stringify(body),
+      responseType: "text",
+      timeout: 30000,
+      successCodes: false,
+      errorDelayMax: 10000
+    });
+    if (xhr.status && (xhr.status < 200 || xhr.status >= 300)) {
+      throw new Error("AI 接口返回 HTTP " + xhr.status);
+    }
+
+    var json = JSON.parse(xhr.responseText || "{}");
+    var content = json.choices && json.choices[0] && json.choices[0].message
+      && json.choices[0].message.content;
+    var parsed = parseAIJSON(content);
+    if (parsed && typeof parsed.index === "number" && candidates[parsed.index]) {
+      return { index: parsed.index, model: model };
+    }
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Batch matching
+  // ---------------------------------------------------------------------------
+
+  function describeAttachment(attachment, parent) {
+    var authors = [];
+    var year = "";
+    var publisher = "";
+    var title = "";
+    var isbn = "";
+
+    if (parent) {
+      title = safeGetField(parent, "title");
+      isbn = C.normalizeISBN(safeGetField(parent, "ISBN"));
+      year = safeGetField(parent, "date");
+      publisher = safeGetField(parent, "publisher");
+      authors = parent.getCreators()
+        .filter(function (creator) { return Zotero.CreatorTypes.getName(creator.creatorTypeID) === "author"; })
+        .map(function (creator) {
+          return [creator.firstName, creator.lastName].filter(Boolean).join(" ");
+        })
+        .filter(Boolean);
+    }
+
+    return {
+      attachmentID: attachment.id,
+      itemID: parent ? parent.id : null,
+      filename: attachment.attachmentFilename || "",
+      title: title,
+      isbn: isbn,
+      authors: authors,
+      year: year,
+      publisher: publisher,
+      itemType: parent ? Zotero.ItemTypes.getName(parent.itemTypeID) : "attachment"
+    };
+  }
+
+  /**
+   * List PDF attachments in a collection.
+   * @param {Number} collectionID
+   * @param {Boolean} recursive Include subcollections
+   * @returns {Promise<Object[]>}
+   */
+  async function getCollectionPDFs(collectionID, recursive) {
+    var collection = Zotero.Collections.get(collectionID);
+    if (!collection) {
+      throw new Error("找不到这个分类");
+    }
+
+    var itemIDs = recursive
+      ? collection.getDescendents(false, "item").map(function (entry) { return entry.id; })
+      : collection.getChildItems(true);
+    var items = Zotero.Items.get(itemIDs);
+    var descriptors = [];
+    var seenParents = Object.create(null);
+    var seenAttachments = Object.create(null);
+
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      if (!item || item.deleted) {
+        continue;
+      }
+
+      if (item.isAttachment()) {
+        if (item.isPDFAttachment() && !seenAttachments[item.id]) {
+          seenAttachments[item.id] = true;
+          descriptors.push(describeAttachment(item, null));
+        }
+        continue;
+      }
+
+      if (item.isNote()) {
+        continue;
+      }
+      if (seenParents[item.id]) {
+        continue;
+      }
+
+      var attachments = item.getAttachments();
+      for (var j = 0; j < attachments.length; j++) {
+        var attachment = Zotero.Items.get(attachments[j]);
+        if (attachment && attachment.isPDFAttachment() && !seenAttachments[attachment.id]) {
+          seenAttachments[attachment.id] = true;
+          seenParents[item.id] = true;
+          descriptors.push(describeAttachment(attachment, item));
+          break;
+        }
+      }
+    }
+
+    return descriptors;
+  }
+
+  async function getPDFISBN(attachmentID) {
+    var attachment = Zotero.Items.get(attachmentID);
+    if (!attachment || !attachment.isPDFAttachment()) {
+      return "";
+    }
+
+    var text = await extractPDFText(attachment);
+    if (!text) {
+      // The PDF may still be in Zotero's indexing queue. Trigger it and give
+      // the full-text cache a few seconds to appear.
+      try {
+        await Zotero.Fulltext.indexItems([attachment.id]);
+      }
+      catch (e) {
+        log("fulltext trigger failed: " + e);
+      }
+      for (var i = 0; i < 10 && !text; i++) {
+        await new Promise(function (resolve) { setTimeout(resolve, 1000); });
+        text = await extractPDFText(attachment);
+      }
+    }
+    return C.extractISBNs(text)[0] || "";
+  }
+
+  function openBatch(data) {
+    var win = Zotero.getMainWindow();
+    if (!win) {
+      return null;
+    }
+    return win.openDialog(
+      "chrome://duxiumeta/content/batch.xhtml",
+      "duxiumeta-batch-" + Date.now(),
+      "chrome,centerscreen,resizable=yes,width=1120,height=780",
+      data || {}
+    );
+  }
+
+  function addCollectionMenu(win) {
+    if (!win || !win.document || !win.ZoteroPane) {
+      return;
+    }
+    var doc = win.document;
+    var popup = doc.getElementById("zotero-collectionmenu");
+    if (!popup || doc.getElementById(COLLECTION_MENU_ID)) {
+      return;
+    }
+
+    var menu = doc.createXULElement("menu");
+    menu.id = COLLECTION_MENU_ID;
+    menu.setAttribute("label", "读秀元数据");
+    menu.setAttribute("class", "menu-iconic");
+    menu.setAttribute("image", ICON_URL);
+
+    var submenu = doc.createXULElement("menupopup");
+    menu.appendChild(submenu);
+
+    var batchItem = createMenuItem(doc, "AI 批量匹配…", function () {
+      var collection = win.ZoteroPane.getSelectedCollection();
+      if (!collection) {
+        return;
+      }
+      openBatch({ collectionID: collection.id, collectionName: collection.name });
+    });
+    submenu.appendChild(batchItem);
+
+    menu.addEventListener("popupshowing", function () {
+      var collection = win.ZoteroPane.getSelectedCollection();
+      batchItem.disabled = !collection;
+    });
+
+    popup.appendChild(menu);
+  }
+
+  // ---------------------------------------------------------------------------
   // Menus
   // ---------------------------------------------------------------------------
 
@@ -939,6 +1208,7 @@
       updateMenuState(win);
     });
     popup.appendChild(menu);
+    addCollectionMenu(win);
   }
 
   function removeMenu(win) {
@@ -948,6 +1218,10 @@
     var menu = win.document.getElementById(MENU_ID);
     if (menu) {
       menu.remove();
+    }
+    var collectionMenu = win.document.getElementById(COLLECTION_MENU_ID);
+    if (collectionMenu) {
+      collectionMenu.remove();
     }
   }
 
@@ -1021,6 +1295,10 @@
     searchFromSelection: searchFromSelection,
     searchFromClipboard: searchFromClipboard,
     openSearch: openSearch,
+    openBatch: openBatch,
+    aiPickCandidate: aiPickCandidate,
+    getCollectionPDFs: getCollectionPDFs,
+    getPDFISBN: getPDFISBN,
     openVerification: openVerification,
     getVerificationURL: getVerificationURL,
     finishVerification: finishVerification,
