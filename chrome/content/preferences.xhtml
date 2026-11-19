@@ -91,8 +91,9 @@
   <groupbox>
     <label><html:h3 class="duxiumeta-section">AI 辅助（可选）</html:h3></label>
     <html:p class="duxiumeta-help">
-      启用后，批量匹配会把 PDF 文件名、识别出的 ISBN/书名和候选书目发送给 OpenAI 兼容接口，
-      由模型挑选最匹配的一条。不会上传 PDF 内容。未配置时使用本地评分，功能不受影响。
+      启用后，批量匹配会把 PDF 文件名、识别出的 ISBN/书名、前几页的短片段（最多约 2000 字）
+      和候选书目发送给 OpenAI 兼容接口，由模型挑选最匹配的一条。不会上传完整 PDF。
+      未配置时使用本地评分，功能不受影响。
     </html:p>
     <checkbox id="duxiumeta-ai-enabled" native="true"
               preference="extensions.zotero.duxiumeta.ai.enabled"

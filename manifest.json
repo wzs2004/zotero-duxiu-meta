@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Duxiu Meta (读秀元数据)",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "为 PDF 自动匹配图书元数据：读秀、文津、豆瓣、Google Books、Open Library；支持 AI 批量匹配。",
   "homepage_url": "https://github.com/wzs2004/zotero-duxiu-meta#readme",
   "author": "zotero-duxiu-meta contributors",

@@ -343,7 +343,7 @@
       }
     }
 
-    await Promise.all([worker(), worker()]);
+    await Promise.all([worker(), worker(), worker()]);
 
     state.scanning = false;
     $("btn-scan").disabled = false;
@@ -356,8 +356,11 @@
     setRowStatus(row, "识别中…", "scanning");
     try {
       var isbn = row.desc.isbn;
+      var snippet = "";
       if (!isbn) {
-        isbn = await Zotero.DuxiuMeta.getPDFISBN(row.desc.attachmentID);
+        var pdfInfo = await Zotero.DuxiuMeta.getPDFInfo(row.desc.attachmentID, 2000);
+        isbn = pdfInfo.isbn;
+        snippet = pdfInfo.snippet;
         if (isbn) {
           row.isbnEl.textContent = C.formatISBN(isbn);
         }
@@ -370,6 +373,7 @@
       }
       row.desc.isbn = isbn;
       row.desc.title = row.desc.title || title;
+      row.desc.snippet = snippet;
 
       var query = {
         hintIsbn: isbn,
@@ -389,18 +393,27 @@
         });
       }
 
-      var pool = (outcome.results || []).slice(0, 6);
+      var pool = (outcome.results || []).slice(0, 5);
 
       // With an ISBN in hand, check the ISBN of the top records before deciding.
       // Douban's search result doesn't include ISBN, so a detail fetch is the
-      // only way to tell the exact edition from a similar title.
+      // only way to tell the exact edition from a similar title. Stop early
+      // once an exact ISBN is found and only check two candidates.
       if (isbn) {
-        for (var k = 0; k < Math.min(pool.length, 3); k++) {
-          if (!pool[k].isbn) {
-            try {
-              await Zotero.DuxiuMeta.enrichResult(pool[k]);
+        var hasExact = pool.some(function (result) {
+          return C.normalizeISBN(result.isbn) === isbn;
+        });
+        if (!hasExact) {
+          for (var k = 0; k < Math.min(pool.length, 2); k++) {
+            if (!pool[k].isbn) {
+              try {
+                await Zotero.DuxiuMeta.enrichResult(pool[k]);
+              }
+              catch (e) {}
             }
-            catch (e) {}
+            if (C.normalizeISBN(pool[k].isbn) === isbn) {
+              break;
+            }
           }
         }
         pool.forEach(function (result) {
@@ -424,7 +437,21 @@
       row.selected = 0;
       row.aiUsed = false;
 
-      if (typeof Zotero.DuxiuMeta.aiPickCandidate === "function" && candidates.length > 1) {
+      // An exact ISBN is stronger evidence than any model guess, and skipping
+      // the call also saves tokens.
+      var exactIndex = -1;
+      if (isbn) {
+        for (var e = 0; e < candidates.length; e++) {
+          if (C.normalizeISBN(candidates[e].isbn) === isbn) {
+            exactIndex = e;
+            break;
+          }
+        }
+      }
+      if (exactIndex !== -1) {
+        row.selected = exactIndex;
+      }
+      else if (typeof Zotero.DuxiuMeta.aiPickCandidate === "function" && candidates.length > 1) {
         try {
           var ai = await Zotero.DuxiuMeta.aiPickCandidate(row.desc, candidates);
           if (ai && typeof ai.index === "number" && candidates[ai.index]) {

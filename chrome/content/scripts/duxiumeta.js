@@ -485,11 +485,14 @@
     return { attachment: attachment, item: item };
   }
 
-  async function extractPDFText(attachment) {
+  async function extractPDFText(attachment, maxChars) {
     try {
       var cacheFile = Zotero.Fulltext.getItemCacheFile(attachment);
       if (cacheFile && cacheFile.exists && cacheFile.exists()) {
-        return await Zotero.File.getContentsAsync(cacheFile, null, 4000000);
+        // Only the beginning of the full-text cache is needed: ISBN, title and
+        // publisher almost always appear on the first pages. Reading 4 MB for
+        // every PDF made large batches slow.
+        return await Zotero.File.getContentsAsync(cacheFile, null, maxChars || 16000);
       }
     }
     catch (e) {
@@ -897,7 +900,7 @@
 
   /**
    * Ask an OpenAI-compatible model to choose among candidate records.
-   * Only bibliographic text is sent; PDF contents never leave the machine.
+   * Only bibliographic text and a short first-pages excerpt are sent.
    * @returns {Promise<{index: number, model: string}|null>}
    */
   async function aiPickCandidate(desc, candidates) {
@@ -915,33 +918,42 @@
       headers.Authorization = "Bearer " + apiKey;
     }
 
+    var payload = {
+      filename: desc.filename,
+      currentTitle: desc.title,
+      detectedISBN: desc.isbn,
+      candidates: candidates.map(function (candidate, index) {
+        return {
+          index: index,
+          title: candidate.title,
+          authors: (candidate.authors || []).slice(0, 3),
+          publisher: candidate.publisher,
+          date: candidate.date,
+          isbn: candidate.isbn,
+          source: candidate.source
+        };
+      })
+    };
+
+    // A short excerpt is enough to recognize the book and keeps token usage low.
+    var snippet = String(desc.snippet || "").trim().slice(0, 2000);
+    if (snippet) {
+      payload.firstPages = snippet;
+    }
+
     var body = {
       model: model,
       temperature: 0,
       messages: [
         {
           role: "system",
-          content: "你是图书元数据匹配助手。根据 PDF 文件名、当前条目信息和候选书目，选择最匹配的一条。"
+          content: "你是图书元数据匹配助手。只根据文件名、ISBN/书名、PDF 前几页片段和候选书目选择最匹配的一条。"
+            + "片段可能含页眉、目录或正文，忽略无关内容，不要臆造。"
             + "只返回 JSON，例如 {\"index\": 0}；没有合适的候选返回 {\"index\": -1}。不要输出解释。"
         },
         {
           role: "user",
-          content: JSON.stringify({
-            filename: desc.filename,
-            currentTitle: desc.title,
-            detectedISBN: desc.isbn,
-            candidates: candidates.map(function (candidate, index) {
-              return {
-                index: index,
-                title: candidate.title,
-                authors: candidate.authors,
-                publisher: candidate.publisher,
-                date: candidate.date,
-                isbn: candidate.isbn,
-                source: candidate.source
-              };
-            })
-          })
+          content: JSON.stringify(payload)
         }
       ]
     };
@@ -950,7 +962,7 @@
       headers: headers,
       body: JSON.stringify(body),
       responseType: "text",
-      timeout: 30000,
+      timeout: 20000,
       successCodes: false,
       errorDelayMax: 10000
     });
@@ -1061,28 +1073,37 @@
     return descriptors;
   }
 
-  async function getPDFISBN(attachmentID) {
+  async function getPDFInfo(attachmentID, snippetLength) {
     var attachment = Zotero.Items.get(attachmentID);
     if (!attachment || !attachment.isPDFAttachment()) {
-      return "";
+      return { isbn: "", snippet: "" };
     }
 
-    var text = await extractPDFText(attachment);
+    var text = await extractPDFText(attachment, 16000);
     if (!text) {
       // The PDF may still be in Zotero's indexing queue. Trigger it and give
-      // the full-text cache a few seconds to appear.
+      // the cache a few seconds to appear; don't block a batch for long.
       try {
         await Zotero.Fulltext.indexItems([attachment.id]);
       }
       catch (e) {
         log("fulltext trigger failed: " + e);
       }
-      for (var i = 0; i < 10 && !text; i++) {
-        await new Promise(function (resolve) { setTimeout(resolve, 1000); });
-        text = await extractPDFText(attachment);
+      for (var i = 0; i < 4 && !text; i++) {
+        await new Promise(function (resolve) { setTimeout(resolve, 800); });
+        text = await extractPDFText(attachment, 16000);
       }
     }
-    return C.extractISBNs(text)[0] || "";
+
+    return {
+      isbn: C.extractISBNs(text)[0] || "",
+      snippet: String(text || "").slice(0, snippetLength || 0)
+    };
+  }
+
+  async function getPDFISBN(attachmentID) {
+    var info = await getPDFInfo(attachmentID, 0);
+    return info.isbn;
   }
 
   function openBatch(data) {
@@ -1299,6 +1320,7 @@
     aiPickCandidate: aiPickCandidate,
     getCollectionPDFs: getCollectionPDFs,
     getPDFISBN: getPDFISBN,
+    getPDFInfo: getPDFInfo,
     openVerification: openVerification,
     getVerificationURL: getVerificationURL,
     finishVerification: finishVerification,
